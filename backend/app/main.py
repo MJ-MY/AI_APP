@@ -3,75 +3,70 @@ from __future__ import annotations
 import os
 from typing import AsyncIterator
 
-import httpx
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from dotenv import load_dotenv
 
+from .config import get_settings
+from .schemas import ChatDelta, ChatRequest, HealthResponse, sse_message
 
-# 读取环境变量文件（本地开发用）
-# - 你可以在 backend/.env.local 里放 MINIMAX_API_KEY
-# - 也可以放在 backend/.env
-# - 也兼容你当前的文件放置：backend/app/.env.local
-# - 环境变量优先级：系统环境变量 > .env.local/.env
+
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env.local"))
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env.local"))
 
-app = FastAPI(title="ai-app-backend", version="0.1.0")
+settings = get_settings()
+
+app = FastAPI(title=settings.app_name, version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-@app.get("/health")
-async def health():
-    return JSONResponse(
-        {
-            "ok": True,
-            "service": "backend",
-            "minimax_key_configured": bool(os.environ.get("MINIMAX_API_KEY")),
-        }
+@app.get("/health", response_model=HealthResponse)
+async def health() -> HealthResponse:
+    return HealthResponse(
+        ok=True,
+        service="backend",
+        minimax_key_configured=bool(settings.minimax_api_key),
     )
 
 
 @app.post("/v1/chat/stream")
-async def chat_stream(request: Request):
+async def chat_stream(request: Request) -> StreamingResponse:
     """
-    Minimal SSE endpoint.
+    SSE endpoint with a unified ChatDelta schema.
 
-    - For now: streams a placeholder message.
-    - Next step: replace `iterator()` with a real MiniMax streaming call.
+    - For now: echoes a placeholder delta and done event.
+    - Next: replace `iterator()` with a real streaming call to your model provider.
     """
 
-    _ = await request.body()
+    try:
+        body = await request.json()
+        _ = ChatRequest.model_validate(body)
+    except Exception as exc:  # noqa: BLE001
+        async def error_iterator() -> AsyncIterator[bytes]:
+            payload = ChatDelta(type="error", error=str(exc), content=None)
+            yield sse_message("message", payload.model_dump_json())
+
+        return StreamingResponse(error_iterator(), media_type="text/event-stream")
 
     async def iterator() -> AsyncIterator[bytes]:
-        yield b"event: message\ndata: {\"type\":\"delta\",\"content\":\"Backend is running. Next: connect MiniMax.\"}\n\n"
-        yield b"event: message\ndata: {\"type\":\"done\"}\n\n"
+        delta = ChatDelta(
+            type="delta",
+            content="Backend is running. Next: connect real model + conversations.",
+            error=None,
+        )
+        yield sse_message("message", delta.model_dump_json())
+
+        done = ChatDelta(type="done", content=None, error=None)
+        yield sse_message("message", done.model_dump_json())
 
     return StreamingResponse(iterator(), media_type="text/event-stream")
-
-
-# --- Optional: MiniMax streaming (hook point) ---
-# When you're ready, you can implement a function like below and use it in /v1/chat/stream.
-#
-# MINIMAX_BASE = "https://api.minimax.io"
-# MINIMAX_PATH = "/v1/text/chatcompletion_v2"
-#
-# async def minimax_stream(payload: dict) -> AsyncIterator[bytes]:
-#     api_key = os.environ["MINIMAX_API_KEY"]
-#     headers = {
-#         "Authorization": f"Bearer {api_key}",
-#         "Content-Type": "application/json",
-#         "Accept": "text/event-stream",
-#     }
-#     payload = {**payload, "stream": True}
-#     async with httpx.AsyncClient(timeout=None) as client:
-#         async with client.stream(
-#             "POST",
-#             f"{MINIMAX_BASE}{MINIMAX_PATH}",
-#             headers=headers,
-#             json=payload,
-#         ) as r:
-#             r.raise_for_status()
-#             async for chunk in r.aiter_raw():
-#                 yield chunk
 
