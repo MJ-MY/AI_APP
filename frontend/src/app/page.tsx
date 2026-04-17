@@ -13,6 +13,18 @@ export default function Home() {
         <div className="mt-6 grid gap-3">
           <a
             className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+            href="/login"
+          >
+            打开 <code className="font-mono">/login</code>（前端登录/注册/测试登录页）
+          </a>
+          <a
+            className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+            href="/chat"
+          >
+            打开 <code className="font-mono">/chat</code>（需已登录，否则会自动跳转到登录页）
+          </a>
+          <a
+            className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
             href="/api/health"
             target="_blank"
             rel="noreferrer"

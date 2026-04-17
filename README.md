@@ -5,6 +5,23 @@
 - `frontend/`: Next.js（页面 + 同源网关转发 `/api/*`）
 - `backend/`: FastAPI（业务后端：后续接 MiniMax / RAG / 知识库）
 
+## 本地 Postgres（注册登录需要数据库）
+
+如果你看到注册接口报错类似 `connection refused` 到 `127.0.0.1:5432`，说明本机 Postgres 没启动。
+
+在项目根目录执行：
+
+```bash
+docker compose up -d postgres
+```
+
+默认会启动一个 Postgres（账号/密码/库名都是 `ai_app`），并映射到本机 `5432`。
+
+你也可以参考：
+
+- `docker-compose.yml`
+- `backend/.env.example`
+
 ## 本地运行（不需要 Docker）
 
 ### 1) 启动后端（FastAPI）
@@ -15,7 +32,8 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-# 配置环境变量（先不配也能跑 health）
+# 配置环境变量（注册登录建议至少配置 DATABASE_URL / JWT_SECRET）
+# 推荐做法：复制 backend/.env.example 为 backend/.env.local 再按需修改
 export MINIMAX_API_KEY="你的key"
 
 uvicorn app.main:app --reload --host 127.0.0.1 --port 8000

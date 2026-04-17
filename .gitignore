@@ -1,0 +1,16 @@
+.DS_Store
+
+# env files (keep examples tracked, ignore real secrets)
+.env
+.env.local
+**/.env.local
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+
+# node / next
+node_modules/
+.next/
+out/
